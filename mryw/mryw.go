@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	path          = "/mryw"
+	path          = "/Users/dracarysX/Pictures/每日一wen"
 	userAgent     = "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36"
 	socketAddress = "127.0.0.1:1080"
 )
@@ -84,8 +84,9 @@ func parseHTML(body []byte) image {
 }
 
 func imgName(url string) string {
-	re := regexp.MustCompile(`\/[0-9a-zA-Z]+\.(jpg|png|jpeg)`)
+	re := regexp.MustCompile(`\/[0-9a-zA-Z_]+\.(jpg|png|jpeg)`)
 	name := re.FindAllStringSubmatch(url, -1)[0][0]
+	log.Println("image name: ", name)
 	return name
 }
 
@@ -107,7 +108,7 @@ func saveImage(info imageInfo, path string) {
 
 func main() {
 	if len(os.Args) <= 1 {
-		log.Fatalln("parameter error")
+		log.Fatalln("please input start url.")
 	}
 	startURL := os.Args[1]
 	dialer, err := proxy.SOCKS5("tcp", socketAddress, nil, proxy.Direct)
@@ -118,6 +119,9 @@ func main() {
 	httpClient := &http.Client{Transport: httpTransport}
 	httpTransport.Dial = dialer.Dial
 	body, err := request(httpClient, startURL)
+	if err != nil {
+		log.Fatalln("request start url failure, err: ", err)
+	}
 	image := parseHTML(body)
 	folderPath := path + "/" + image.title
 	ok, err := pathExists(folderPath)
