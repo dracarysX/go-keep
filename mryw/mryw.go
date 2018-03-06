@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strings"
 
 	"github.com/axgle/mahonia"
 	"golang.org/x/net/proxy"
@@ -25,6 +26,7 @@ type image struct {
 type imageInfo struct {
 	name    string
 	imgByte []byte
+	err     error
 }
 
 var imgChan = make(chan imageInfo)
@@ -83,15 +85,27 @@ func parseHTML(body []byte) image {
 	return image{title, imgURL}
 }
 
-func imgName(url string) string {
-	re := regexp.MustCompile(`\/[0-9a-zA-Z_]+\.(jpg|png|jpeg)`)
-	name := re.FindAllStringSubmatch(url, -1)[0][0]
-	log.Println("image name: ", name)
-	return name
+func getImgName(url string) (string, bool) {
+	s := strings.Split(url, "/")
+	if len(s) == 0 {
+		return "", false
+	}
+	var name string
+	// re := regexp.MustCompile(`\/[0-9a-zA-Z_-]+\.(jpg|png|jpeg)`)
+	// name := re.FindAllStringSubmatch(url, -1)[0][0]
+	name = s[len(s)-1]
+	if len(strings.Split(name, ".")) == 1 {
+		name = name + ".jpg"
+	}
+	// log.Println("image name: ", name)
+	return name, true
 }
 
 func saveImage(info imageInfo, path string) {
-	imgName := path + info.name
+	if info.err != nil {
+		return
+	}
+	imgName := path + "/" + info.name
 	exists, err := pathExists(imgName)
 	if err != nil {
 		log.Println("check img path failure: ", err)
@@ -103,6 +117,7 @@ func saveImage(info imageInfo, path string) {
 	var fh *os.File
 	fh, _ = os.Create(imgName)
 	defer fh.Close()
+	log.Println("saving image: ", imgName)
 	fh.Write(info.imgByte)
 }
 
@@ -135,14 +150,16 @@ func main() {
 		}
 	}
 	for _, url := range image.imgURL {
-		name := imgName(url)
-		go func(n string, u string) {
-			imgByte, err := request(httpClient, u)
-			if err != nil {
-				log.Printf("download image failure, url: %s, err: %v\n", u, err)
-			}
-			imgChan <- imageInfo{n, imgByte}
-		}(name, url)
+		name, ok := getImgName(url)
+		if ok {
+			go func(n string, u string) {
+				imgByte, err := request(httpClient, u)
+				if err != nil {
+					log.Printf("download image failure, url: %s, err: %v\n", u, err)
+				}
+				imgChan <- imageInfo{n, imgByte, err}
+			}(name, url)
+		}
 	}
 	for i := 0; i < len(image.imgURL); i++ {
 		select {
