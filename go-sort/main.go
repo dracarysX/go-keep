@@ -6,7 +6,7 @@ import (
 
 func quickSort(source []int) (result []int) {
 	if len(source) <= 1 {
-		result = source
+		result = source[:]
 		return
 	}
 	key := source[0]
@@ -28,21 +28,27 @@ func quickSort(source []int) (result []int) {
 }
 
 // 合并两个有序数组
-func merge(a, b []int) (result []int) {
-	for i, j := range a {
-		if len(b) == 0 {
-			result = append(result, a[i:]...)
+func merge(left, right []int) (result []int) {
+	if len(right) == 0 {
+		result = left
+		return
+	}
+	for i, j := range left {
+		if len(right) == 0 {
+			result = append(result, left[i:]...)
 			break
 		}
-		var x, y int
-		for x, y = range b {
+		for _, y := range right {
 			if y >= j {
-				result = append(result, j)
 				break
 			}
 			result = append(result, y)
+			right = right[1:]
 		}
-		b = b[x:]
+		result = append(result, j)
+	}
+	if len(right) > 0 {
+		result = append(result, right...)
 	}
 	return
 }
@@ -52,6 +58,10 @@ func mergeSort(source []int) (result []int) {
 		result = source
 		return
 	}
+	t := len(source) / 2
+	left := mergeSort(source[:t])
+	right := mergeSort(source[t:])
+	result = merge(left, right)
 	return
 }
 
@@ -59,6 +69,5 @@ func main() {
 	source := []int{10, 7, 1, 3, 5, 9, 2, 4, 8, 6}
 	target := quickSort(source)
 	fmt.Println(target)
-	r := merge([]int{1, 3, 5, 7, 9}, []int{2, 4, 6, 8})
-	fmt.Println(r)
+	fmt.Println(mergeSort(source))
 }
